@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!-- Illustrative MDK .launch file -->
+<!-- Usage: roslaunch com3528_examples sim_move_ball.com -->
+<!-- This starts Gazebo simulator with ROS bridge and MiRo in its standard environment -->
+<!-- Additionally, a helper node is started that moves the blue ball in an oscillating motion for 2 minutes -->
+<launch>
+
+  <!-- Add custom Gazebo paths -->
+  <env name="GAZEBO_MODEL_PATH"
+      value="$(find pacman)/models:$(optenv MIRO_DIR_MDK)/sim/models:$(optenv GAZEBO_MODEL_PATH)" />
+  <env name="GAZEBO_RESOURCE_PATH"
+      value="$(optenv MIRO_DIR_MDK)/sim:$(optenv GAZEBO_RESOURCE_PATH)" />
+  <env name="GAZEBO_PLUGIN_PATH"
+      value="$(optenv MIRO_DIR_MDK)/bin/${MIRO_SYSTEM}:$(optenv GAZEBO_PLUGIN_PATH)" />
+
+  <!-- Specify which .world file to load -->
+  <arg name="world" default="$(optenv MIRO_DIR_MDK)/sim/worlds/miro.world"/>
+
+  <!-- Set the name for Gazebo -->
+  <arg name="gazebo_ns" default="gazebo_server" doc="Gazebo namespace, typically 'gazebo' or 'gazebo_server'" />
+  <!-- start Gazebo server with exposed ROS interface-->
+  <node name="$(arg gazebo_ns)"
+      pkg="gazebo_ros"
+      type="gzserver"
+      respawn="false"
+      required="true"
+      args="--physics ode --verbose $(arg world)"
+  />
+
+  <!--A helper script the moves the ball in Gazebo-->
+  <node name="ball_mover" pkg="com3528_examples" type="ball_mover.py" />
+
+  <!-- Start Gazebo client -->
+  <node name="gazebo_gui"
+      pkg="gazebo_ros"
+      type="gzclient"
+      respawn="true"
+  />
+
+</launch>

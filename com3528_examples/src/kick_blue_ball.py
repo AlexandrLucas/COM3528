@@ -33,7 +33,7 @@ class MiRoClient:
     """
     Script settings below
     """
-    TICK = 0.01  # This is the update interval for the main control loop in secs
+    TICK = 0.02  # This is the update interval for the main control loop in secs
     CAM_FREQ = 1  # Number of ticks before camera gets a new frame, increase in case of network lag
     SLOW = 0.1  # Radial speed when turning on the spot (rad/s)
     FAST = 0.4  # Linear speed when kicking the ball (m/s)
