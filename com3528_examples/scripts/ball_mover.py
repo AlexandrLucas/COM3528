@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-#
+# This script shows how to move a Gazebo object using ROS bridge
+# In this particular case the object is MiRo's toy ball, and the script assumes that it is present in the world
 
 # Imports
 ##########################

@@ -7,7 +7,7 @@
 
   <!-- Add custom Gazebo paths -->
   <env name="GAZEBO_MODEL_PATH"
-      value="$(find pacman)/models:$(optenv MIRO_DIR_MDK)/sim/models:$(optenv GAZEBO_MODEL_PATH)" />
+      value="$(find com3528_examples)/models:$(optenv MIRO_DIR_MDK)/sim/models:$(optenv GAZEBO_MODEL_PATH)" />
   <env name="GAZEBO_RESOURCE_PATH"
       value="$(optenv MIRO_DIR_MDK)/sim:$(optenv GAZEBO_RESOURCE_PATH)" />
   <env name="GAZEBO_PLUGIN_PATH"
