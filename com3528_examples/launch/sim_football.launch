@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!-- How to start a simulation with multiple MiRos using a launch file -->
+<!-- Usage: roslaunch com3528_examples sim_football.com -->
+
+<!-- This method relies on the MiRos being loaded with the world file -->
+<!-- The football_pitch world has 3 MiRos, named miro01, miro02 and miro03 -->#
+<!-- The launch file shows how to load a script to control each MiRo by locally changing the MIRO_ROBOT_NAME variable and putting the node in the corresponding namespace -->
+<launch>
+
+  <!-- Add custom Gazebo paths -->
+  <env name="GAZEBO_MODEL_PATH"
+      value="$(optenv MIRO_DIR_MDK)/sim/models:$(optenv GAZEBO_MODEL_PATH)" />
+  <env name="GAZEBO_RESOURCE_PATH"
+      value="$(optenv MIRO_DIR_MDK)/sim:$(optenv GAZEBO_RESOURCE_PATH)" />
+  <env name="GAZEBO_PLUGIN_PATH"
+      value="$(optenv MIRO_DIR_MDK)/bin/${MIRO_SYSTEM}:$(optenv GAZEBO_PLUGIN_PATH)" />
+
+  <!-- Specify which .world file to load -->
+  <arg name="world" default="$(find com3528_examples)/sim/worlds/football_pitch.world"/>
+
+  <!-- Set the name for Gazebo -->
+  <arg name="gazebo_ns" default="gazebo_server" doc="Gazebo namespace, typically 'gazebo' or 'gazebo_server'" />
+
+  <!-- start Gazebo server with exposed ROS interface-->
+  <node name="$(arg gazebo_ns)"
+      pkg="gazebo_ros"
+      type="gzserver"
+      respawn="false"
+      required="true"
+      args="--physics ode --verbose $(arg world)"
+  />
+
+  <!-- MiRo1 behaviour -->
+  <env name="MIRO_ROBOT_NAME" value="miro01" />
+  <node ns="miro01" name="kick_blue_ball_01" pkg="com3528_examples" type="kick_blue_ball.py" />
+
+  <!-- MiRo2 behaviour -->
+  <env name="MIRO_ROBOT_NAME" value="miro02" />
+  <node ns="miro02" name="kick_blue_ball_02" pkg="com3528_examples" type="kick_blue_ball.py" />
+
+  <!-- MiRo3 behaviour -->
+  <env name="MIRO_ROBOT_NAME" value="miro03" />
+  <node ns="miro03" name="kick_blue_ball_03" pkg="com3528_examples" type="kick_blue_ball.py" />
+
+  <!-- Start Gazebo client -->
+  <node name="gazebo_gui"
+      pkg="gazebo_ros"
+      type="gzclient"
+      respawn="true"
+  />
+
+</launch>
