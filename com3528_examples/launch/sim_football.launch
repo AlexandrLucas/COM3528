@@ -3,7 +3,7 @@
 <!-- Usage: roslaunch com3528_examples sim_football.com -->
 
 <!-- This method relies on the MiRos being loaded with the world file -->
-<!-- The football_pitch world has 3 MiRos, named miro01, miro02 and miro03 -->#
+<!-- The football_pitch world has 3 MiRos, named miro01, miro02 and miro03 -->
 <!-- The launch file shows how to load a script to control each MiRo by locally changing the MIRO_ROBOT_NAME variable and putting the node in the corresponding namespace -->
 <launch>
 
