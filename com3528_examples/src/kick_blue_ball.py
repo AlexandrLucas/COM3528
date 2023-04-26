@@ -37,7 +37,7 @@ class MiRoClient:
     CAM_FREQ = 1  # Number of ticks before camera gets a new frame, increase in case of network lag
     SLOW = 0.1  # Radial speed when turning on the spot (rad/s)
     FAST = 0.4  # Linear speed when kicking the ball (m/s)
-    DEBUG = False  # Set to True to enable debug views of the cameras
+    DEBUG = True  # Set to True to enable debug views of the cameras
     ##NOTE The following option is relevant in MiRoCODE
     NODE_EXISTS = False  # Disables (True) / Enables (False) rospy.init_node
 
@@ -293,7 +293,7 @@ class MiRoClient:
         self.image_converter = CvBridge()
         # Individual robot name acts as ROS topic prefix
         topic_base_name = "/" + os.getenv("MIRO_ROBOT_NAME")
-        # Create two new subscribers to recieve camera images with attached callbacks
+        # Create two new subscribers to receive camera images with attached callbacks
         self.sub_caml = rospy.Subscriber(
             topic_base_name + "/sensors/caml/compressed",
             CompressedImage,
@@ -322,7 +322,7 @@ class MiRoClient:
         self.new_frame = [False, False]
         # Create variable to store a list of ball's x, y, and r values for each camera
         self.ball = [None, None]
-        # Set the default frame width (gets updated on reciecing an image)
+        # Set the default frame width (gets updated on receiving an image)
         self.frame_width = 640
         # Action selector to reduce duplicate printing to the terminal
         self.just_switched = True
