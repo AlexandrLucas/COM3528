@@ -4,7 +4,7 @@ import rospy    # ROS Python interface
 from std_msgs.msg import Float32MultiArray
 
 class CliffSubscriber(object):
-    
+
     """
         The following code will provide information on cliffs
     """
@@ -20,9 +20,13 @@ class CliffSubscriber(object):
         self.lcliff = data.data[0]
         self.rcliff = data.data[1]
 
-cliff = CliffSubscriber()
-while not rospy.is_shutdown():
-    # run the code to check the data from the subscriber
-    toPrint = "Left Cliff: " + str(cliff.lcliff) + "\nRight Cliff: " + str(cliff.rcliff)
-    print(toPrint)
-    rospy.sleep(0.5)    # to slow down the printing
+if __name__ == '__main__':
+    cliff = CliffSubscriber()
+    rospy.sleep(0.5) # short wait to make sure everything is initialised
+    while not rospy.is_shutdown():
+        # Print the cliff sensors data
+        # Data ranges from 0 (cliff) to 1 (surface)
+        # Note that the sensor resolution is 1/15
+        toPrint = 'Left Cliff: {}; Right Cliff: {}'.format(cliff.lcliff, cliff.rcliff)
+        print(toPrint)
+        rospy.sleep(0.5) # to slow down the printing
