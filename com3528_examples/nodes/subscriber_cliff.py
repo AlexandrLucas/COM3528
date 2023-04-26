@@ -13,12 +13,13 @@ class CliffSubscriber(object):
         self.lcliff = None
         self.rcliff = None
         topic_base_name = "/" + os.getenv("MIRO_ROBOT_NAME")
-        self.subscriber = rospy.Subscriber(topic_base_name + "/sensors/cliff", Float32MultiArray, self.callback)
+        self.subscriber = rospy.Subscriber(topic_base_name + "/sensors/cliff", 
+                                           Float32MultiArray, self.callback)
 
     # callback function used to update the object instances for this class
     def callback(self, data):
-        self.lcliff = data.data[0]
-        self.rcliff = data.data[1]
+        self.left = data.data[0]
+        self.right = data.data[1]
 
 if __name__ == '__main__':
     cliff = CliffSubscriber()
@@ -27,6 +28,6 @@ if __name__ == '__main__':
         # Print the cliff sensors data
         # Data ranges from 0 (cliff) to 1 (surface)
         # Note that the sensor resolution is 1/15
-        toPrint = 'Left Cliff: {}; Right Cliff: {}'.format(cliff.lcliff, cliff.rcliff)
+        toPrint = 'Left Cliff: {}; Right Cliff: {}'.format(cliff.left, cliff.right)
         print(toPrint)
         rospy.sleep(0.5) # to slow down the printing
