@@ -14,6 +14,8 @@ class MovementPublisher(object):
         self.vel_pub = rospy.Publisher(
             topic_base_name + "/control/cmd_vel", TwistStamped, queue_size=0
         )
+        # Clean-up
+        rospy.on_shutdown(self.shutdown_hook)
 
     # linear is to move straight and angular is to turn
     def set_move_cmd(self, linear = 0.0, angular = 0.0):
