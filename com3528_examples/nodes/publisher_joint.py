@@ -68,6 +68,6 @@ if __name__ == '__main__':
         # set angle will have oscillatory behaviors for blinking and head shake
         set_angle = np.sin(current_time - movement.start_time)
         movement.set_move_kinematic(yaw = set_angle)
-        movement.set_move_cosmetic(left_eye = set_angle, right_eye = set_angle)
+        movement.set_move_cosmetic(left_ear=set_angle, right_ear=set_angle, left_eye = set_angle, right_eye = set_angle)
         rospy.sleep(0.02)
 

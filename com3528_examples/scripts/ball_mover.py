@@ -5,6 +5,7 @@
 # Imports
 ##########################
 import rospy  # ROS Python interface
+import rostopic
 import math
 from gazebo_msgs.msg import ModelState
 from gazebo_msgs.srv import SetModelState
@@ -17,8 +18,14 @@ class Gazebo_Object():
         CUTOFF_TIME = 120 # Stop after this amount of seconds
 
         def __init__(self):
-            self.gazebo_ns = "/gazebo_server" # Gazebo namespace;
-            #self.gazebo_ns = "/gazebo" # Use this namespace if launched with ./launch_full.sh
+            #  Check if ROS-Gazebo bridge is open and what's its namespace
+            if rostopic.get_topic_type('/gazebo_server/set_model_state')[0] == 'gazebo_msgs/ModelState':
+                self.gazebo_ns = "/gazebo_server" # Gazebo namespace;
+            elif rostopic.get_topic_type('/gazebo/set_model_state')[0] == 'gazebo_msgs/ModelState':    
+                self.gazebo_ns = "/gazebo" # Gazebo namespace;
+            else:
+                print("Could not find Gazebo topic 'set_model_state'. Ensure Gazebo-ROS bridge is running.")
+                raise SystemExit
             self.name = "miro_toy_ball" # Object name
 
             self.x0 = 0.6
@@ -29,6 +36,7 @@ class Gazebo_Object():
             self.speed_coeff = 0.5
 
 if __name__ == "__main__":
+    rospy.sleep(1)
     rospy.init_node('ball_mover')
     GO = Gazebo_Object()
     state_msg = ModelState()
@@ -44,8 +52,9 @@ if __name__ == "__main__":
     rospy.wait_for_service(GO.gazebo_ns + '/set_model_state')
     start_time = rospy.get_rostime()
     delta_t = 0
+    print("Moving the {}...".format(GO.name))
     while not rospy.core.is_shutdown():
-        print(delta_t)
+        #print(delta_t)
         rospy.sleep(GO.TICK)
         current_time = rospy.get_rostime()
         # Make the ball move in an oscillatory motion
@@ -59,3 +68,4 @@ if __name__ == "__main__":
             print("Service call failed: %s" % e)
         if (current_time - start_time).secs > GO.CUTOFF_TIME:
             break
+    print("{} movement stopped.".format(GO.name))
