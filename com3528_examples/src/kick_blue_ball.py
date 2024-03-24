@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 This script makes MiRo look for a blue ball and kick it
 
@@ -6,9 +8,10 @@ The code was tested for Python 2 and 3
 For Python 2 you might need to change the shebang line to
 #!/usr/bin/env python
 """
+
 # Imports
-##########################
 import os
+import subprocess
 from math import radians  # This is used to reset the head pose
 import numpy as np  # Numerical Analysis library
 import cv2  # Computer Vision library
@@ -19,27 +22,55 @@ from sensor_msgs.msg import JointState  # ROS joints state message
 from cv_bridge import CvBridge, CvBridgeError  # ROS -> OpenCV converter
 from geometry_msgs.msg import TwistStamped  # ROS cmd_vel (velocity control) message
 
-
 import miro2 as miro  # Import MiRo Developer Kit library
 
 try:  # For convenience, import this util separately
     from miro2.lib import wheel_speed2cmd_vel  # Python 3
 except ImportError:
     from miro2.utils import wheel_speed2cmd_vel  # Python 2
-##########################
-
 
 class MiRoClient:
     """
     Script settings below
     """
+    ##########################
     TICK = 0.02  # This is the update interval for the main control loop in secs
     CAM_FREQ = 1  # Number of ticks before camera gets a new frame, increase in case of network lag
     SLOW = 0.1  # Radial speed when turning on the spot (rad/s)
     FAST = 0.4  # Linear speed when kicking the ball (m/s)
-    DEBUG = True  # Set to True to enable debug views of the cameras
-    ##NOTE The following option is relevant in MiRoCODE
-    NODE_EXISTS = False  # Disables (True) / Enables (False) rospy.init_node
+    DEBUG = False # Set to True to enable debug views of the cameras
+    TRANSLATION_ONLY = False # Whether to rotate only
+    IS_MIROCODE = False  # Set to True if running in MiRoCODE
+
+    # formatting order
+    PREPROCESSING_ORDER = ["edge", "smooth", "color", "gaussian"]
+        # set to empty to not preprocess or add the methods in the order you want to implement.
+        # "edge" to use edge detection, "gaussian" to use difference gaussian
+        # "color" to use color segmentation, "smooth" to use smooth blurring,
+
+    # color segmentation format
+    HSV = True  # if true select a color which will convert to hsv format with a range of its own, else you can select your own rgb range
+    f = lambda x: int(0) if (x < 0) else (int(255) if x > 255 else int(x))
+    COLOR_HSV = [f(255), f(0), f(0)]     # target color which will be converted to hsv for processing, format BGR
+    COLOR_LOW = (f(180), f(0), f(0))         # low color segment, format BGR
+    COLOR_HIGH = (f(255), f(255), f(255))  # high color segment, format BGR
+
+    # edge detection format
+    INTENSITY_LOW = 50   # min 0, max 500
+    INTENSITY_HIGH = 50  # min 0, max 500
+
+    # smoothing_blurring
+    GAUSSIAN_BLURRING = False
+    KERNEL_SIZE = 15         # min 3, max 15
+    STANDARD_DEVIATION = 0  # min 0.1, max 4.9
+
+    # difference gaussian
+    DIFFERENCE_SD_LOW = 1.5 # min 0.00, max 1.40
+    DIFFERENCE_SD_HIGH = 0 # min 0.00, max 1.40
+    ##########################
+    """
+    End of script settings
+    """
 
     def reset_head_pose(self):
         """
@@ -56,6 +87,10 @@ class MiRoClient:
             t += self.TICK
             if t > 1:
                 break
+        self.INTENSITY_CHECK = lambda x: int(0) if (x < 0) else (int(500) if x > 500 else int(x))
+        self.KERNEL_SIZE_CHECK = lambda x: int(3) if (x < 3) else (int(15) if x > 15 else int(x))
+        self.STANDARD_DEVIATION_PROCESS = lambda x: 0.1 if (x < 0.1) else (4.9 if x > 4.9 else round(x, 1))
+        self.DIFFERENCE_CHECK = lambda x: 0.01 if (x < 0.01) else (1.40 if x > 1.40 else round(x,2))
 
     def drive(self, speed_l=0.1, speed_r=0.1):  # (m/sec, m/sec)
         """
@@ -120,34 +155,69 @@ class MiRoClient:
 
         # Flag this frame as processed, so that it's not reused in case of lag
         self.new_frame[index] = False
-        # Get image in HSV (hue, saturation, value) colour format
-        im_hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
 
-        # Specify target ball colour
-        rgb_colour = np.uint8([[[255, 0, 0]]])  # e.g. Blue (Note: BGR)
-        # Convert this colour to HSV colour model
-        hsv_colour = cv2.cvtColor(rgb_colour, cv2.COLOR_RGB2HSV)
+        processed_img = frame
 
-        # Extract colour boundaries for masking image
-        # Get the hue value from the numpy array containing target colour
-        target_hue = hsv_colour[0, 0][0]
-        hsv_lo_end = np.array([target_hue - 20, 70, 70])
-        hsv_hi_end = np.array([target_hue + 20, 255, 255])
+        for method in self.PREPROCESSING_ORDER:
+            if method == "color":
+                if self.HSV == True:
+                    # Get image in HSV (hue, saturation, value) colour format
+                    im_hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
 
-        # Generate the mask based on the desired hue range
-        mask = cv2.inRange(im_hsv, hsv_lo_end, hsv_hi_end)
-        mask_on_image = cv2.bitwise_and(im_hsv, im_hsv, mask=mask)
+                    # Specify target ball colour
+                    rgb_colour = np.uint8([[self.COLOR_HSV]])  # e.g. Blue (Note: BGR)
+                    # Convert this colour to HSV colour model
+                    hsv_colour = cv2.cvtColor(rgb_colour, cv2.COLOR_RGB2HSV)
+
+                    # Extract colour boundaries for masking image
+                    # Get the hue value from the numpy array containing target colour
+                    target_hue = hsv_colour[0, 0][0]
+                    hsv_lo_end = np.array([target_hue - 20, 70, 70])
+                    hsv_hi_end = np.array([target_hue + 20, 255, 255])
+
+                    # Generate the mask based on the desired hue range
+                    mask = cv2.inRange(im_hsv, hsv_lo_end, hsv_hi_end)
+                    processed_img = cv2.bitwise_and(processed_img, processed_img, mask=mask)
+                else:
+                    mask = cv2.inRange(frame, self.COLOR_LOW, self.COLOR_HIGH)
+                    processed_img = cv2.bitwise_and(processed_img, processed_img, mask=mask)
+
+            elif method == "gaussian":
+                sigma1 = self.DIFFERENCE_CHECK(self.DIFFERENCE_SD_LOW)
+                sigma2 = self.DIFFERENCE_CHECK(self.DIFFERENCE_SD_HIGH)
+                img_gauss1 = cv2.GaussianBlur(processed_img, (0, 0), sigma1)
+                img_gauss2 = cv2.GaussianBlur(processed_img, (0, 0), sigma2)
+                processed_img = img_gauss1 - img_gauss2
+
+            elif method == "smooth":
+                kernel_size = (self.KERNEL_SIZE_CHECK(self.KERNEL_SIZE), self.KERNEL_SIZE_CHECK(self.KERNEL_SIZE))
+
+                if not self.GAUSSIAN_BLURRING:
+                    # average smoothing
+                    kernel = np.ones(kernel_size, np.float32) / kernel_size[0]**2
+                    processed_img = cv2.filter2D(processed_img, -1, kernel)
+
+                else:
+                    # Gaussian blurring
+                    sigma = self.STANDARD_DEVIATION_PROCESS(self.STANDARD_DEVIATION)
+                    processed_img = cv2.GaussianBlur(processed_img, (0,0), sigma) # kernel size computed as: [(sigma - 0.8)/0.3 + 1] / 0.5 + 1
+                                                                    # see opencv documentation
+
+            elif method == "edge":
+                processed_img = cv2.Canny(processed_img, self.INTENSITY_LOW, self.INTENSITY_HIGH)
 
         # Debug window to show the mask
         if self.DEBUG:
-            cv2.imshow("mask" + str(index), mask_on_image)
+            cv2.imshow("mask" + str(index), processed_img)
             cv2.waitKey(1)
 
-        # Clean up the image
-        seg = mask
-        seg = cv2.GaussianBlur(seg, (5, 5), 0)
-        seg = cv2.erode(seg, None, iterations=2)
-        seg = cv2.dilate(seg, None, iterations=2)
+        if len(processed_img.shape) == 3:
+            processed_img = cv2.cvtColor(processed_img, cv2.COLOR_BGR2GRAY)
+
+        # Debug window to show the mask
+        if self.DEBUG:
+            cv2.imshow("gray" + str(index), processed_img)
+            cv2.waitKey(1)
 
         # Fine-tune parameters
         ball_detect_min_dist_between_cens = 40  # Empirical
@@ -159,7 +229,7 @@ class MiRoClient:
         # Find circles using OpenCV routine
         # This function returns a list of circles, with their x, y and r values
         circles = cv2.HoughCircles(
-            seg,
+            processed_img,
             cv2.HOUGH_GRADIENT,
             1,
             ball_detect_min_dist_between_cens,
@@ -243,7 +313,7 @@ class MiRoClient:
         # If only the right camera sees the ball, rotate clockwise
         if not self.ball[0] and self.ball[1]:
             self.drive(self.SLOW, -self.SLOW)
-        # Conversely, rotate counterclockwise
+        # Conversely, rotate counter-clockwise
         elif self.ball[0] and not self.ball[1]:
             self.drive(-self.SLOW, self.SLOW)
         # Make the MiRo face the ball if it's visible with both cameras
@@ -256,7 +326,7 @@ class MiRoClient:
             if abs(left_x) - abs(right_x) > error:
                 self.drive(rotation_speed, -rotation_speed)  # turn clockwise
             elif abs(left_x) - abs(right_x) < -error:
-                self.drive(-rotation_speed, rotation_speed)  # turn counterclockwise
+                self.drive(-rotation_speed, rotation_speed)  # turn counter-clockwise
             else:
                 # Successfully turned to face the ball
                 self.status_code = 3  # Switch to the third action
@@ -277,15 +347,15 @@ class MiRoClient:
         if self.just_switched:
             print("MiRo is kicking the ball!")
             self.just_switched = False
-        if self.counter <= self.bookmark + 2 / self.TICK:
+        if self.counter <= self.bookmark + 2 / self.TICK and not self.TRANSLATION_ONLY:
             self.drive(self.FAST, self.FAST)
         else:
             self.status_code = 0  # Back to the default state after the kick
             self.just_switched = True
 
     def __init__(self):
-        # Initialise a new ROS node to communicate with MiRo
-        if not self.NODE_EXISTS:
+        # Initialise a new ROS node to communicate with MiRo, if needed
+        if not self.IS_MIROCODE:
             rospy.init_node("kick_blue_ball", anonymous=True)
         # Give it some time to make sure everything is initialised
         rospy.sleep(2.0)
